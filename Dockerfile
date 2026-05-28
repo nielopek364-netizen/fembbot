@@ -1,18 +1,14 @@
-# Dockerfile for Render deployment
 FROM python:3.10-slim
 
 WORKDIR /app
 
-# Copy requirements and install
+# Zainstaluj zależności
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
-# Copy bot code
+# Skopiuj pliki bota
 COPY bot.py .
 COPY keep_alive.py .
 
-# Token będzie z Environment Variable na Render
-# NIE kopius .env - Discord token ustawiasz w panelu Render!
-
-# Run bot na Pythonie
+# Bot Discord - uruchom na Pythonie
 CMD ["python", "bot.py"]
