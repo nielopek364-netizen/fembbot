@@ -26,14 +26,16 @@ intents.guilds = True
 BOT_NAME = "✨ FembGirl ✨"
 BOT_VERSION = "2.3"
 
-bot = commands.Bot(command_prefix='!', intents=intents, help_command=None)
+bot = commands.Bot(command_prefix=['!', '.'], intents=intents, help_command=None)
 
 # Color constants for premium embeds
 COLOR_SFW = 0xFFB6C1      # Soft light pink
 COLOR_NSFW = 0x9B59B6     # Deep premium violet/purple
 COLOR_AVATAR = 0xFF1493   # Deep pink
-COLOR_INFO = 0x3498DB     # Soft aesthetic blue
+# INVITE_LINKS removed – not needed
+# Hidden invite command removed
 
+COLOR_INFO = 0x3498DB     # Soft aesthetic blue
 class FemboyBot(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -726,6 +728,12 @@ class FemboyBot(commands.Cog):
         embed.set_footer(text=f"Powered by {BOT_NAME} v{BOT_VERSION}")
         
         await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="invite", description="Ukryta komenda – wyświetla linki zaproszeń")
+    @app_commands.checks.is_owner()
+    async def invite(self, interaction: discord.Interaction):
+        """Hidden command to share server invite links"""
+    
 
 @bot.event
 async def on_ready():
