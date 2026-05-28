@@ -36,6 +36,7 @@ COLOR_INFO = 0x3498DB     # Soft aesthetic blue
 
 class FemboyBot(commands.Cog):
     def __init__(self, bot):
+        self.bot = bot
         self.seen_urls = set()
         self.session = None
         self.last_avatar_update = None
