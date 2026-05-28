@@ -24,7 +24,7 @@ intents.guilds = True
 
 # Bot name and branding
 BOT_NAME = "✨ FembGirl ✨"
-BOT_VERSION = "2.2"
+BOT_VERSION = "2.3"
 
 bot = commands.Bot(command_prefix='!', intents=intents, help_command=None)
 
@@ -76,48 +76,38 @@ class FemboyBot(commands.Cog):
         await asyncio.sleep(5)
 
     async def fetch_images(self, nsfw: bool = False, limit: int = 1, tag: Optional[str] = None) -> List[dict]:
-        """Fetch random femboy images from Safebooru (SFW) or Danbooru (NSFW) with full tag support and fallbacks"""
+        """Fetch random femboy images from Safebooru (SFW) or Danbooru (NSFW) with full tag support and instant fallbacks"""
         if not self.session:
             self.session = aiohttp.ClientSession()
 
         headers = {
-            'User-Agent': 'FemboyBot/2.2 (contact: discord-bot@example.com; PairProgrammingWithAntigravity)'
+            'User-Agent': 'FemboyBot/2.3 (contact: discord-bot@example.com; PairProgrammingWithAntigravity)'
         }
         
         results = []
-        attempts = 0
-        max_attempts = 3
         
-        while len(results) < limit and attempts < max_attempts:
-            attempts += 1
+        # --- SFW: Query Safebooru ---
+        if not nsfw:
+            api_tags = "femboy"
+            if tag:
+                clean_tag = tag.strip().replace(" ", "_")
+                api_tags += f"+{clean_tag}"
             
-            # --- SFW: Query Safebooru ---
-            if not nsfw:
-                api_tags = "femboy"
-                if tag:
-                    # Clean tag for booru spaces compatibility
-                    clean_tag = tag.strip().replace(" ", "_")
-                    api_tags += f"+{clean_tag}"
-                    pid = random.randint(0, 1)  # safe limit to avoid empty pages on specific filters
-                else:
-                    pid = random.randint(0, 20)  # higher randomization for general search (2000+ posts)
-                
-                url = f"https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags={api_tags}&limit=100&pid={pid}"
-                
-                try:
-                    async with self.session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                        if resp.status == 200:
-                            data = await resp.json()
-                            if not data or not isinstance(data, list):
-                                continue
-                            
+            # ALWAYS use pid=0 because Safebooru has exactly 57 posts in total.
+            # Specifying pid > 0 returns empty results. We load all and pick randomly locally!
+            url = f"https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags={api_tags}&limit=100&pid=0"
+            
+            try:
+                async with self.session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        if data and isinstance(data, list):
                             parsed_items = []
                             for item in data:
                                 img_url = item.get('file_url') or item.get('sample_url')
                                 if not img_url:
                                     continue
                                 
-                                # Standardize relative URLs returned by some boorus
                                 if img_url.startswith('//'):
                                     img_url = 'https:' + img_url
                                 elif img_url.startswith('/'):
@@ -134,11 +124,8 @@ class FemboyBot(commands.Cog):
                                     'api_source': 'Safebooru'
                                 })
                             
-                            if not parsed_items:
-                                continue
-                            
-                            # Local filter verification
-                            if tag:
+                            # Apply local tag filtering as a secondary guarantee
+                            if tag and parsed_items:
                                 tag_lower = tag.lower().strip()
                                 filtered = [
                                     item for item in parsed_items 
@@ -147,38 +134,34 @@ class FemboyBot(commands.Cog):
                                 if filtered:
                                     parsed_items = filtered
                             
-                            random.shuffle(parsed_items)
-                            for item in parsed_items:
-                                if item['url'] not in [r['url'] for r in results]:
-                                    results.append(item)
-                                    if len(results) >= limit:
-                                        break
-                except Exception as e:
-                    print(f"❌ Błąd podczas odpytywania Safebooru: {e}")
-                    # Force fallback to Danbooru rating:g (safe)
-                    nsfw = False
+                            if parsed_items:
+                                random.shuffle(parsed_items)
+                                for item in parsed_items:
+                                    if item['url'] not in [r['url'] for r in results]:
+                                        results.append(item)
+                                        if len(results) >= limit:
+                                            break
+            except Exception as e:
+                print(f"⚠️ Safebooru query failed: {e}. Falling back to Danbooru SFW...")
+        
+        # --- NSFW (or SFW fallback when results are empty) ---
+        if nsfw or (not results and not nsfw):
+            rating_filter = "rating:g" if not nsfw else "-rating:g"
+            api_tags = f"femboy+{rating_filter}+order:random"
             
-            # --- NSFW (or SFW fallback): Query Danbooru ---
-            if nsfw or (not results and not nsfw):
-                rating_filter = "rating:g" if not nsfw else "-rating:g"
-                api_tags = f"femboy+{rating_filter}+order:random"
-                
-                if tag:
-                    clean_tag = tag.strip().replace(" ", "_")
-                    api_tags += f"+{clean_tag}"
-                
-                url = f"https://danbooru.donmai.us/posts.json?tags={api_tags}&limit=100"
-                
-                try:
-                    async with self.session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as resp:
-                        if resp.status == 200:
-                            data = await resp.json()
-                            if not data or not isinstance(data, list):
-                                continue
-                            
+            if tag:
+                clean_tag = tag.strip().replace(" ", "_")
+                api_tags += f"+{clean_tag}"
+            
+            url = f"https://danbooru.donmai.us/posts.json?tags={api_tags}&limit=100"
+            
+            try:
+                async with self.session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        if data and isinstance(data, list):
                             parsed_items = []
                             for item in data:
-                                # Prioritize large_file_url for optimal Discord loading speed
                                 img_url = item.get('large_file_url') or item.get('file_url')
                                 if not img_url:
                                     continue
@@ -194,11 +177,8 @@ class FemboyBot(commands.Cog):
                                     'api_source': 'Danbooru'
                                 })
                             
-                            if not parsed_items:
-                                continue
-                            
-                            # Local filter verification
-                            if tag:
+                            # Local tag filtering for extra verification
+                            if tag and parsed_items:
                                 tag_lower = tag.lower().strip()
                                 filtered = [
                                     item for item in parsed_items 
@@ -207,15 +187,16 @@ class FemboyBot(commands.Cog):
                                 if filtered:
                                     parsed_items = filtered
                             
-                            random.shuffle(parsed_items)
-                            for item in parsed_items:
-                                if item['url'] not in [r['url'] for r in results]:
-                                    results.append(item)
-                                    if len(results) >= limit:
-                                        break
-                except Exception as e:
-                    print(f"❌ Błąd podczas odpytywania Danbooru: {e}")
-                    
+                            if parsed_items:
+                                random.shuffle(parsed_items)
+                                for item in parsed_items:
+                                    if item['url'] not in [r['url'] for r in results]:
+                                        results.append(item)
+                                        if len(results) >= limit:
+                                            break
+            except Exception as e:
+                print(f"❌ Danbooru query failed: {e}")
+                
         return results[:limit]
 
     @app_commands.command(name="femboy-sfw", description="Wyślij bezpieczne zdjęcia (SFW) uroczych femboyów 🌸")
