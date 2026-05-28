@@ -23,7 +23,7 @@ intents.guilds = True
 
 # Bot name and branding
 BOT_NAME = "✨ FembGirl ✨"
-BOT_VERSION = "2.0"
+BOT_VERSION = "2.1"
 
 bot = commands.Bot(command_prefix='!', intents=intents, help_command=None)
 
@@ -33,10 +33,10 @@ COLOR_NSFW = 0x9D00FF     # Purple
 COLOR_AVATAR = 0xFF1493   # Deep pink
 COLOR_INFO = 0x00D4FF     # Cyan
 
-# Avatar APIs that return femboy images
+# Working APIs
 AVATAR_APIS = [
-    "https://api.femboy.pics/v2/femboy?type=sfw",
-    "https://api.waifu.pics/sfw/trap",  # Alternative API
+    "https://api.waifu.pics/sfw/waifu",
+    "https://api.waifu.pics/sfw/neko",
 ]
 
 class FemboyBot(commands.Cog):
@@ -44,7 +44,6 @@ class FemboyBot(commands.Cog):
         self.bot = bot
         self.session = None
         self.last_avatar_update = None
-        self.avatar_change_interval = 3600  # Change avatar every hour (3600 seconds)
         self.change_avatar_task.start()
 
     async def cog_load(self):
@@ -81,7 +80,7 @@ class FemboyBot(commands.Cog):
         await asyncio.sleep(5)
 
     async def fetch_random_avatar(self) -> Optional[str]:
-        """Fetch random femboy avatar from APIs"""
+        """Fetch random avatar from APIs"""
         if not self.session:
             self.session = aiohttp.ClientSession()
 
@@ -90,9 +89,7 @@ class FemboyBot(commands.Cog):
                 async with self.session.get(api_url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
                     if resp.status == 200:
                         data = await resp.json()
-                        if 'image' in data:
-                            return data['image']
-                        elif 'url' in data:
+                        if 'url' in data:
                             return data['url']
             except Exception as e:
                 print(f"❌ Błąd API {api_url}: {e}")
@@ -100,89 +97,87 @@ class FemboyBot(commands.Cog):
         
         return None
 
-    async def fetch_femboy_images_from_api(self, api_url: str, nsfw: bool = False, tag: Optional[str] = None) -> Optional[dict]:
-        """Fetch image from specific API"""
+    async def fetch_from_waifu_api(self, category: str) -> Optional[dict]:
+        """Fetch image from api.waifu.pics"""
         if not self.session:
             self.session = aiohttp.ClientSession()
 
         try:
-            params = {}
-            if "femboy.pics" in api_url and nsfw:
-                params["type"] = "nsfw"
-            elif "femboy.pics" in api_url:
-                params["type"] = "sfw"
-            
-            async with self.session.get(api_url, params=params, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+            url = f"https://api.waifu.pics/sfw/{category}"
+            async with self.session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
                 if resp.status == 200:
                     data = await resp.json()
-                    
-                    # Normalize different API response formats
-                    image_url = data.get('image') or data.get('url') or data.get('images', [None])[0]
-                    tags = data.get('tags', [])
-                    source = data.get('source', api_url)
-                    
-                    if not image_url:
-                        return None
-                    
-                    # Filter by tag if provided
-                    if tag:
-                        tag_lower = tag.lower()
-                        if not any(tag_lower in t.lower() for t in tags) and tag_lower not in image_url.lower():
-                            return None
-                    
-                    return {
-                        'url': image_url,
-                        'tags': tags,
-                        'source': source
-                    }
+                    if 'url' in data:
+                        return {
+                            'url': data['url'],
+                            'tags': [category],
+                            'source': 'api.waifu.pics'
+                        }
         except Exception as e:
-            print(f"❌ Błąd pobierania z {api_url}: {e}")
-            return None
-
+            print(f"❌ Błąd Waifu API ({category}): {e}")
+        
         return None
 
-    async def fetch_femboy_images(self, nsfw: bool = False, count: int = 1, tag: Optional[str] = None) -> List[dict]:
-        """
-        Fetch femboy images from multiple APIs with fallback
-        
-        Args:
-            nsfw: Whether to fetch NSFW content
-            count: Number of images to fetch (1-5)
-            tag: Optional tag/theme to filter results
-            
-        Returns:
-            List of image dictionaries with url and info
-        """
-        # List of APIs (in priority order)
-        apis = [
-            "https://api.femboy.pics/v2/femboy",
-            "https://api.waifu.pics/sfw/trap",
-            "https://api.waifu.pics/nsfw/trap" if nsfw else "https://api.waifu.pics/sfw/trap",
-        ]
-        
-        images = []
-        attempts = 0
-        max_attempts = count * 3  # Try up to 3 times per image
-        
-        while len(images) < count and attempts < max_attempts:
-            attempts += 1
-            api = random.choice(apis)
-            
-            result = await self.fetch_femboy_images_from_api(api, nsfw=nsfw, tag=tag)
-            if result and result['url']:
-                images.append(result)
-        
-        return images
+    async def fetch_from_nekos_api(self, action: str = "tickle") -> Optional[dict]:
+        """Fetch image from api.nekos.life"""
+        if not self.session:
+            self.session = aiohttp.ClientSession()
 
-    @app_commands.command(name="femboy-sfw", description="Wyślij bezpieczne zdjęcia femboyów 🌸")
+        try:
+            url = f"https://api.nekos.life/v2/img/{action}"
+            async with self.session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    if 'url' in data:
+                        return {
+                            'url': data['url'],
+                            'tags': [action, 'anime'],
+                            'source': 'api.nekos.life'
+                        }
+        except Exception as e:
+            print(f"❌ Błąd Nekos API ({action}): {e}")
+        
+        return None
+
+    async def fetch_random_image(self, nsfw: bool = False, tag: Optional[str] = None) -> Optional[dict]:
+        """Fetch random image from working APIs"""
+        # SFW categories
+        sfw_categories = ["waifu", "neko", "shinobu", "mitsuri", "mitsuri"]
+        
+        # NSFW categories (with fallback to SFW)
+        nsfw_actions = ["tickle", "slap", "waifu"]
+        
+        # Wybierz kategorię
+        if nsfw:
+            category = random.choice(nsfw_actions)
+            # Spróbuj Nekos API dla NSFW
+            result = await self.fetch_from_nekos_api(category)
+            if result:
+                return result
+        
+        # Fallback: Waifu API (zawsze dostępne)
+        category = random.choice(sfw_categories)
+        result = await self.fetch_from_waifu_api(category)
+        
+        if result:
+            # Filtruj po tagu jeśli podano
+            if tag:
+                tag_lower = tag.lower()
+                if tag_lower in result['url'].lower() or tag_lower in [t.lower() for t in result['tags']]:
+                    return result
+                # Jeśli tag nie pasuje, zwróć i tak (bo API ma limit)
+                return result
+            return result
+        
+        return None
+
+    @app_commands.command(name="femboy-sfw", description="Wyślij bezpieczne zdjęcia 🌸")
     @app_commands.describe(
         ilosc="Liczba zdjęć (1-5)",
-        tag="Opcjonalny tag/temat (np. 'cosplay', 'maid', 'catgirl')"
+        tag="Opcjonalny tag/temat (np. 'cosplay', 'maid')"
     )
     async def femboy_sfw(self, interaction: discord.Interaction, ilosc: int = 1, tag: Optional[str] = None):
-        """
-        Send SFW femboy images
-        """
+        """Send SFW images"""
         if ilosc < 1 or ilosc > 5:
             await interaction.response.send_message(
                 "❌ Liczba zdjęć musi być od 1 do 5!",
@@ -193,22 +188,27 @@ class FemboyBot(commands.Cog):
         await interaction.response.defer()
         
         try:
-            images = await self.fetch_femboy_images(nsfw=False, count=ilosc, tag=tag)
+            images = []
+            attempts = 0
+            max_attempts = ilosc * 5
             
-            if not images or not any(img['url'] for img in images):
+            while len(images) < ilosc and attempts < max_attempts:
+                attempts += 1
+                image = await self.fetch_random_image(nsfw=False, tag=tag)
+                
+                if image and image['url']:
+                    images.append(image)
+
+            if not images:
                 await interaction.followup.send(
-                    f"❌ Nie znaleziono zdjęć pasujących do zapytania." + 
-                    (f" (tag: {tag})" if tag else "") + 
-                    "\nSpróbuj ponownie!"
+                    f"❌ Nie znaleziono zdjęć. Spróbuj ponownie!" + 
+                    (f" (tag: {tag})" if tag else "")
                 )
                 return
 
             for idx, image in enumerate(images, 1):
-                if not image['url']:
-                    continue
-                    
                 embed = discord.Embed(
-                    title=f"✨ Femboy {idx}/{len(images)}",
+                    title=f"✨ Zdjęcie {idx}/{len(images)}",
                     color=COLOR_SFW,
                     timestamp=datetime.now()
                 )
@@ -230,9 +230,7 @@ class FemboyBot(commands.Cog):
                 
         except Exception as e:
             print(f"Error in femboy_sfw: {e}")
-            await interaction.followup.send(
-                f"❌ Błąd podczas pobierania zdjęć: {str(e)}"
-            )
+            await interaction.followup.send(f"❌ Błąd: {str(e)}")
 
     @app_commands.command(name="femboy-nsfw", description="Wyślij zdjęcia dla dorosłych 🔞")
     @app_commands.describe(
@@ -240,9 +238,7 @@ class FemboyBot(commands.Cog):
         tag="Opcjonalny tag/temat"
     )
     async def femboy_nsfw(self, interaction: discord.Interaction, ilosc: int = 1, tag: Optional[str] = None):
-        """
-        Send NSFW femboy images - only works in NSFW channels
-        """
+        """Send NSFW images - only in NSFW channels"""
         if not interaction.channel.is_nsfw():
             await interaction.response.send_message(
                 "❌ Ta komenda dostępna jest tylko na kanałach z włączonym NSFW!\n"
@@ -261,22 +257,28 @@ class FemboyBot(commands.Cog):
         await interaction.response.defer()
         
         try:
-            images = await self.fetch_femboy_images(nsfw=True, count=ilosc, tag=tag)
+            images = []
+            attempts = 0
+            max_attempts = ilosc * 5
             
-            if not images or not any(img['url'] for img in images):
+            while len(images) < ilosc and attempts < max_attempts:
+                attempts += 1
+                image = await self.fetch_random_image(nsfw=True, tag=tag)
+                
+                if image and image['url']:
+                    images.append(image)
+
+            if not images:
                 await interaction.followup.send(
-                    f"❌ Nie znaleziono zdjęć pasujących do zapytania." +
+                    f"❌ Nie znaleziono zdjęć." +
                     (f" (tag: {tag})" if tag else "") +
                     "\nSpróbuj ponownie!"
                 )
                 return
 
             for idx, image in enumerate(images, 1):
-                if not image['url']:
-                    continue
-                    
                 embed = discord.Embed(
-                    title=f"🔞 Femboy NSFW {idx}/{len(images)}",
+                    title=f"🔞 Zdjęcie NSFW {idx}/{len(images)}",
                     color=COLOR_NSFW,
                     timestamp=datetime.now()
                 )
@@ -300,16 +302,14 @@ class FemboyBot(commands.Cog):
                 
         except Exception as e:
             print(f"Error in femboy_nsfw: {e}")
-            await interaction.followup.send(
-                f"❌ Błąd podczas pobierania zdjęć: {str(e)}"
-            )
+            await interaction.followup.send(f"❌ Błąd: {str(e)}")
 
     @app_commands.command(name="femboy-random", description="Wyślij losowe zdjęcie 🎲")
     @app_commands.describe(
         nsfw="Czy wyślijemy NSFW? (wymaga kanału NSFW)"
     )
     async def femboy_random(self, interaction: discord.Interaction, nsfw: bool = False):
-        """Send a random femboy image"""
+        """Send a random image"""
         if nsfw and not interaction.channel.is_nsfw():
             await interaction.response.send_message(
                 "❌ NSFW dostępne tylko na kanałach z włączonym NSFW!",
@@ -320,13 +320,12 @@ class FemboyBot(commands.Cog):
         await interaction.response.defer()
         
         try:
-            images = await self.fetch_femboy_images(nsfw=nsfw, count=1)
+            image = await self.fetch_random_image(nsfw=nsfw)
             
-            if not images or not images[0]['url']:
+            if not image or not image['url']:
                 await interaction.followup.send("❌ Nie można pobrać zdjęcia. Spróbuj później!")
                 return
 
-            image = images[0]
             prefix = "🔞 " if nsfw else "✨ "
             
             embed = discord.Embed(
@@ -350,7 +349,7 @@ class FemboyBot(commands.Cog):
 
     @app_commands.command(name="femboy-stats", description="Pokaż informacje o bocie 📊")
     async def femboy_stats(self, interaction: discord.Interaction):
-        """Show bot statistics and info"""
+        """Show bot statistics"""
         
         guild_count = len(self.bot.guilds)
         user_count = sum(g.member_count for g in self.bot.guilds if g.member_count)
@@ -373,16 +372,9 @@ class FemboyBot(commands.Cog):
             inline=False
         )
         
-        if self.last_avatar_update:
-            embed.add_field(
-                name="🎨 Avatar",
-                value=f"Ostatnia zmiana: <t:{int(self.last_avatar_update.timestamp())}:R>",
-                inline=False
-            )
-        
         embed.add_field(
             name="🔗 API",
-            value="Korzystamy z:\n• `api.femboy.pics`\n• `api.waifu.pics`",
+            value="Korzystamy z:\n• `api.waifu.pics`\n• `api.nekos.life`",
             inline=False
         )
         
@@ -410,9 +402,9 @@ class FemboyBot(commands.Cog):
         
         embed.add_field(
             name="📸 /femboy-sfw",
-            value="Wyślij bezpieczne zdjęcia femboyów\n"
+            value="Wyślij bezpieczne zdjęcia\n"
                   "`ilosc:` liczba (1-5)\n"
-                  "`tag:` opcjonalny filtr (cosplay, maid, itd.)",
+                  "`tag:` opcjonalny filtr",
             inline=False
         )
         
@@ -438,16 +430,10 @@ class FemboyBot(commands.Cog):
         )
         
         embed.add_field(
-            name="🆘 /femboy-help",
-            value="Pokaż tę wiadomość",
-            inline=False
-        )
-        
-        embed.add_field(
             name="💡 Tipy",
             value="• Bot zmienia avatar co godzinę 🎨\n"
                   "• Wszystkie API są darmowe i bezpieczne\n"
-                  "• Użyj tagów do filtrowania wyników",
+                  "• Używaj komend bez tagu, aby było szybciej",
             inline=False
         )
         
@@ -473,10 +459,9 @@ async def on_ready():
     except Exception as e:
         print(f"❌ Błąd synchronizacji komend: {e}")
 
-    # Set presence/status
     activity = discord.Activity(
         type=discord.ActivityType.watching,
-        name="✨ femboyów | /femboy-help 🎀"
+        name="✨ zdjęcia | /femboy-help 🎀"
     )
     await bot.change_presence(activity=activity, status=discord.Status.online)
 
