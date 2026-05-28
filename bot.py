@@ -36,7 +36,7 @@ COLOR_INFO = 0x3498DB     # Soft aesthetic blue
 
 class FemboyBot(commands.Cog):
     def __init__(self, bot):
-        self.bot = bot
+        self.seen_urls = set()
         self.session = None
         self.last_avatar_update = None
         self.change_avatar_task.start()
@@ -75,7 +75,7 @@ class FemboyBot(commands.Cog):
         await self.bot.wait_until_ready()
         await asyncio.sleep(5)
 
-    async def fetch_images(self, nsfw: bool = False, limit: int = 1, tag: Optional[str] = None) -> List[dict]:
+    async def fetch_images(self, nsfw: bool = False, limit: int = 1, tag: Optional[str] = None, category: str = "femboy") -> List[dict]:
         """Fetch random femboy images from Safebooru (SFW) or Danbooru (NSFW) with full tag support and instant fallbacks"""
         if not self.session:
             self.session = aiohttp.ClientSession()
@@ -88,7 +88,7 @@ class FemboyBot(commands.Cog):
         
         # --- SFW: Query Safebooru ---
         if not nsfw:
-            api_tags = "femboy"
+            api_tags = category
             if tag:
                 clean_tag = tag.strip().replace(" ", "_")
                 api_tags += f"+{clean_tag}"
@@ -147,7 +147,7 @@ class FemboyBot(commands.Cog):
         # --- NSFW (or SFW fallback when results are empty) ---
         if nsfw or (not results and not nsfw):
             rating_filter = "rating:g" if not nsfw else "-rating:g"
-            api_tags = f"femboy+{rating_filter}+order:random"
+            api_tags = f"{category}+{rating_filter}+order:random"
             
             if tag:
                 clean_tag = tag.strip().replace(" ", "_")
@@ -197,7 +197,107 @@ class FemboyBot(commands.Cog):
             except Exception as e:
                 print(f"❌ Danbooru query failed: {e}")
                 
-        return results[:limit]
+        # --- e926.net fallback (both SFW and NSFW) ---
+        if len(results) < limit:
+            e926_rating = "rating:safe" if not nsfw else "rating:questionable+rating:explicit"
+            api_tags = f"femboy+{e926_rating}"
+            if tag:
+                clean_tag = tag.strip().replace(" ", "_")
+                api_tags += f"+{clean_tag}"
+            url = f"https://e926.net/posts.json?tags={api_tags}&limit=100"
+            try:
+                async with self.session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        if data and isinstance(data.get('posts'), list):
+                            parsed_items = []
+                            for item in data['posts']:
+                                img_url = item.get('file', {}).get('url')
+                                if not img_url:
+                                    continue
+                                tags_list = item.get('tags', {}).get('general', [])
+                                parsed_items.append({
+                                    'url': img_url,
+                                    'tags': tags_list,
+                                    'source': f"https://e621.net/posts/{item.get('id')}",
+                                    'author': 'Nieznany',
+                                    'api_source': 'e926'
+                                })
+                            # Local tag filtering
+                            if tag and parsed_items:
+                                tag_lower = tag.lower().strip()
+                                filtered = [
+                                    it for it in parsed_items
+                                    if tag_lower in ' '.join(it['tags']).lower() or tag_lower in it['url'].lower()
+                                ]
+                                if filtered:
+                                    parsed_items = filtered
+                            if parsed_items:
+                                random.shuffle(parsed_items)
+                                for item in parsed_items:
+                                    if item['url'] not in [r['url'] for r in results]:
+                                        results.append(item)
+                                        if len(results) >= limit:
+                                            break
+            except Exception as e:
+                print(f"⚠️ e926.net query failed: {e}")
+
+        # --- Waifu.pics fallback (both SFW and NSFW) ---
+        if len(results) < limit:
+            waifu_type = "nsfw" if nsfw else "sfw"
+            waifu_url = f"https://api.waifu.pics/{waifu_type}/waifu"
+            try:
+                async with self.session.get(waifu_url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        img_url = data.get('url')
+                        if img_url:
+                            results.append({
+                                'url': img_url,
+                                'tags': [],
+                                'source': waifu_url,
+                                'author': 'Waifu.pics',
+                                'api_source': 'Waifu.pics'
+                            })
+            except Exception as e:
+                print(f"⚠️ Waifu.pics query failed: {e}")
+
+        # --- Waifu.im fallback (both SFW and NSFW) ---
+        if len(results) < limit:
+            waifu_im_url = f"https://api.waifu.im/search?included_tags=waifu&is_nsfw={'true' if nsfw else 'false'}&order_by=random"
+            try:
+                async with self.session.get(waifu_im_url, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        images = data.get('images', [])
+                        if images:
+                            img = images[0]
+                            img_url = img.get('url')
+                            if img_url:
+                                results.append({
+                                    'url': img_url,
+                                    'tags': [],
+                                    'source': waifu_im_url,
+                                    'author': 'Waifu.im',
+                                    'api_source': 'Waifu.im'
+                                })
+            except Exception as e:
+                print(f"⚠️ Waifu.im query failed: {e}")
+
+                # Filter out recently seen URLs to reduce repeats
+        unique_results = [r for r in results if r['url'] not in getattr(self, 'seen_urls', set())]
+        # If not enough unique results, fall back to original results
+        if len(unique_results) < limit:
+            unique_results = results[:limit]
+        else:
+            unique_results = unique_results[:limit]
+
+        # Update seen URLs cache (keep size reasonable)
+        self.seen_urls.update(r['url'] for r in unique_results)
+        if len(self.seen_urls) > 200:
+            self.seen_urls = set(list(self.seen_urls)[-200:])
+
+        return unique_results
 
     @app_commands.command(name="femboy-sfw", description="Wyślij bezpieczne zdjęcia (SFW) uroczych femboyów 🌸")
     @app_commands.describe(
@@ -375,6 +475,157 @@ class FemboyBot(commands.Cog):
             print(f"Error in femboy_random: {e}")
             await interaction.followup.send(f"❌ Wystąpił nieoczekiwany błąd: {str(e)}")
 
+    # --- New Commands for Furry and All Categories ---
+    @app_commands.command(name="furry-sfw", description="Send safe furry images (SFW)")
+    @app_commands.describe(ilosc="Liczba zdjęć do pobrania (1-5)", tag="Opcjonalny tag/temat")
+    async def furry_sfw(self, interaction: discord.Interaction, ilosc: int = 1, tag: Optional[str] = None):
+        """Send SFW furry images"""
+        if ilosc < 1 or ilosc > 5:
+            await interaction.response.send_message("❌ Liczba zdjęć musi mieścić się w przedziale od 1 do 5!", ephemeral=True)
+            return
+        await interaction.response.defer()
+        try:
+            images = await self.fetch_images(nsfw=False, limit=ilosc, tag=tag, category="furry")
+            if not images:
+                await interaction.followup.send("❌ Nie znaleziono żadnych bezpiecznych zdjęć furry")
+                return
+            embeds = []
+            for idx, image in enumerate(images, 1):
+                embed = discord.Embed(
+                    title=f"🌸 Uroczy Furry {idx}/{len(images)}",
+                    color=COLOR_SFW,
+                    url=image['source'],
+                    timestamp=datetime.now()
+                )
+                embed.set_image(url=image['url'])
+                tags_str = ", ".join(image['tags'][:8])
+                embed.add_field(name="🏷️ Tagi", value=f"`{tags_str}`" if tags_str else "*Brak*", inline=False)
+                if tag:
+                    embed.add_field(name="🔍 Filtr", value=f"`{tag}`", inline=True)
+                if image.get('author') and image['author'] != 'Nieznany':
+                    embed.add_field(name="🎨 Autor", value=f"`{image['author']}`", inline=True)
+                embed.set_footer(text=f"Źródło: {image['api_source']} | Z miłością od {BOT_NAME}", icon_url=self.bot.user.avatar.url if self.bot.user.avatar else None)
+                embeds.append(embed)
+            await interaction.followup.send(embeds=embeds)
+        except Exception as e:
+            print(f"Error in furry_sfw: {e}")
+            await interaction.followup.send(f"❌ Błąd: {str(e)}")
+
+    @app_commands.command(name="furry-nsfw", description="Send adult furry images (NSFW)")
+    @app_commands.describe(ilosc="Liczba zdjęć do pobrania (1-5)", tag="Opcjonalny tag/temat")
+    async def furry_nsfw(self, interaction: discord.Interaction, ilosc: int = 1, tag: Optional[str] = None):
+        """Send NSFW furry images"""
+        if not interaction.channel or not getattr(interaction.channel, 'is_nsfw', lambda: False)():
+            await interaction.response.send_message("❌ Ta komenda wymaga kanału NSFW", ephemeral=True)
+            return
+        if ilosc < 1 or ilosc > 5:
+            await interaction.response.send_message("❌ Liczba zdjęć musi mieścić się w przedziale od 1 do 5!", ephemeral=True)
+            return
+        await interaction.response.defer()
+        try:
+            images = await self.fetch_images(nsfw=True, limit=ilosc, tag=tag, category="furry")
+            if not images:
+                await interaction.followup.send("❌ Nie znaleziono żadnych pikantnych zdjęć furry")
+                return
+            embeds = []
+            for idx, image in enumerate(images, 1):
+                embed = discord.Embed(
+                    title=f"🔞 Pikantny Furry {idx}/{len(images)}",
+                    color=COLOR_NSFW,
+                    url=image['source'],
+                    timestamp=datetime.now()
+                )
+                embed.set_image(url=image['url'])
+                tags_str = ", ".join(image['tags'][:8])
+                embed.add_field(name="🏷️ Tagi", value=f"`{tags_str}`" if tags_str else "*Brak*", inline=False)
+                if tag:
+                    embed.add_field(name="🔍 Filtr", value=f"`{tag}`", inline=True)
+                if image.get('author') and image['author'] != 'Nieznany':
+                    embed.add_field(name="🎨 Autor", value=f"`{image['author']}`", inline=True)
+                embed.add_field(name="⚠️ Ostrzeżenie", value="Treść przeznaczona wyłącznie dla osób pełnoletnich (18+).", inline=False)
+                embed.set_footer(text=f"Źródło: {image['api_source']} | Z miłością od {BOT_NAME}", icon_url=self.bot.user.avatar.url if self.bot.user.avatar else None)
+                embeds.append(embed)
+            await interaction.followup.send(embeds=embeds)
+        except Exception as e:
+            print(f"Error in furry_nsfw: {e}")
+            await interaction.followup.send(f"❌ Błąd: {str(e)}")
+
+    @app_commands.command(name="all-sfw", description="Send mixed safe images (SFW) from femboy and furry")
+    @app_commands.describe(ilosc="Liczba zdjęć do pobrania (1-5)", tag="Opcjonalny tag/temat")
+    async def all_sfw(self, interaction: discord.Interaction, ilosc: int = 1, tag: Optional[str] = None):
+        """Send mixed SFW images"""
+        if ilosc < 1 or ilosc > 5:
+            await interaction.response.send_message("❌ Liczba zdjęć musi mieścić się w przedziale od 1 do 5!", ephemeral=True)
+            return
+        await interaction.response.defer()
+        try:
+            # Fetch half from each category (rounded up)
+            half = (ilosc + 1) // 2
+            images_femboy = await self.fetch_images(nsfw=False, limit=half, tag=tag, category="femboy")
+            images_furry = await self.fetch_images(nsfw=False, limit=half, tag=tag, category="furry")
+            images = (images_femboy + images_furry)[:ilosc]
+            if not images:
+                await interaction.followup.send("❌ Nie znaleziono żadnych zdjęć")
+                return
+            embeds = []
+            for idx, image in enumerate(images, 1):
+                embed = discord.Embed(
+                    title=f"🌸 Mix {idx}/{len(images)}",
+                    color=COLOR_SFW,
+                    url=image['source'],
+                    timestamp=datetime.now()
+                )
+                embed.set_image(url=image['url'])
+                tags_str = ", ".join(image['tags'][:8])
+                embed.add_field(name="🏷️ Tagi", value=f"`{tags_str}`" if tags_str else "*Brak*", inline=False)
+                if image.get('author') and image['author'] != 'Nieznany':
+                    embed.add_field(name="🎨 Autor", value=f"`{image['author']}`", inline=True)
+                embed.set_footer(text=f"Źródło: {image['api_source']} | Z miłością od {BOT_NAME}", icon_url=self.bot.user.avatar.url if self.bot.user.avatar else None)
+                embeds.append(embed)
+            await interaction.followup.send(embeds=embeds)
+        except Exception as e:
+            print(f"Error in all_sfw: {e}")
+            await interaction.followup.send(f"❌ Błąd: {str(e)}")
+    @app_commands.command(name="all-nsfw", description="Send mixed adult images (NSFW) from femboy and furry")
+    @app_commands.describe(ilosc="Liczba zdjęć do pobrania (1-5)", tag="Opcjonalny tag/temat")
+    async def all_nsfw(self, interaction: discord.Interaction, ilosc: int = 1, tag: Optional[str] = None):
+        """Send mixed NSFW images"""
+        if ilosc < 1 or ilosc > 5:
+            await interaction.response.send_message("❌ Liczba zdjęć musi mieścić się w przedziale od 1 do 5!", ephemeral=True)
+            return
+        # Ensure command is used in NSFW channel
+        if not interaction.channel or not getattr(interaction.channel, 'is_nsfw', lambda: False)():
+            await interaction.response.send_message("❌ Ta komenda wymaga kanału NSFW", ephemeral=True)
+            return
+        await interaction.response.defer()
+        try:
+            half = (ilosc + 1) // 2
+            images_femboy = await self.fetch_images(nsfw=True, limit=half, tag=tag, category="femboy")
+            images_furry = await self.fetch_images(nsfw=True, limit=half, tag=tag, category="furry")
+            images = (images_femboy + images_furry)[:ilosc]
+            if not images:
+                await interaction.followup.send("❌ Nie znaleziono żadnych zdjęć")
+                return
+            embeds = []
+            for idx, image in enumerate(images, 1):
+                embed = discord.Embed(
+                    title=f"🔞 Mix NSFW {idx}/{len(images)}",
+                    color=COLOR_NSFW,
+                    url=image['source'],
+                    timestamp=datetime.now()
+                )
+                embed.set_image(url=image['url'])
+                tags_str = ", ".join(image['tags'][:8])
+                embed.add_field(name="🏷️ Tagi", value=f"`{tags_str}`" if tags_str else "*Brak*", inline=False)
+                if image.get('author') and image['author'] != 'Nieznany':
+                    embed.add_field(name="🎨 Autor", value=f"`{image['author']}`", inline=True)
+                embed.add_field(name="⚠️ Ostrzeżenie", value="Treść przeznaczona wyłącznie dla osób pełnoletnich (18+).", inline=False)
+                embed.set_footer(text=f"Źródło: {image['api_source']} | Z miłością od {BOT_NAME}", icon_url=self.bot.user.avatar.url if self.bot.user.avatar else None)
+                embeds.append(embed)
+            await interaction.followup.send(embeds=embeds)
+        except Exception as e:
+            print(f"Error in all_nsfw: {e}")
+            await interaction.followup.send(f"❌ Błąd: {str(e)}")
     @app_commands.command(name="femboy-stats", description="Pokaż szczegółowe statystyki oraz informacje o bocie 📊")
     async def femboy_stats(self, interaction: discord.Interaction):
         """Show bot statistics"""
@@ -411,14 +662,18 @@ class FemboyBot(commands.Cog):
         )
         
         embed.add_field(
-            name="📖 Dostępne Komendy Slash",
-            value="• `/femboy-sfw` - Bezpieczne zdjęcia femboyów (SFW)\n"
-                  "• `/femboy-nsfw` - Pikantne zdjęcia dla dorosłych (NSFW)\n"
-                  "• `/femboy-random` - Losowe zdjęcie (SFW/NSFW)\n"
-                  "• `/femboy-stats` - Informacje techniczne\n"
-                  "• `/femboy-help` - Instrukcje i pomoc",
-            inline=False
-        )
+    name="📖 Dostępne Komendy Slash",
+    value=(
+        "• `/femboy-sfw` - Bezpieczne zdjęcia femboyów (SFW)\n"
+        "• `/femboy-nsfw` - Pikantne zdjęcia dla dorosłych (NSFW)\n"
+        "• `/femboy-random` - Losowe zdjęcie (SFW/NSFW)\n"
+        "• `/all-sfw` - Mieszane bezpieczne obrazy (femboy + furry)\n"
+        "• `/all-nsfw` - Mieszane NSFW obrazy (femboy + furry)\n"
+        "• `/femboy-stats` - Informacje techniczne\n"
+        "• `/femboy-help` - Instrukcje i pomoc"
+    ),
+    inline=False
+)
         
         embed.set_thumbnail(url=self.bot.user.avatar.url if self.bot.user.avatar else None)
         embed.set_footer(text=f"Stworzone przez nielopek364-netizen | Wersja {BOT_VERSION}")
