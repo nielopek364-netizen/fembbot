@@ -1,29 +1,41 @@
-# FembBot - Discord Femboy Image Bot
+# ✨ FembGirl v2.0 - Discord Femboy Image Bot
 
-🤖 **Kompletny bot Discord do wysyłania zdjęć femboyów z wykorzystaniem slash commands i api.femboy.pics**
+🎀 **Kompletny bot Discord do wysyłania zdjęć femboyów z wykorzystaniem slash commands, wielu API i losowymi avatarami**
+
+---
+
+## 🌟 Nowe Features (v2.0)
+
+✅ **Nazwa Brandu:** ✨ FembGirl ✨
+✅ **Wiele API:** api.femboy.pics + api.waifu.pics (fallback system)
+✅ **Losowy Avatar:** Bot zmienia swój avatar co godzinę z API
+✅ **Nowe Komendy:** `/femboy-random`, `/femboy-stats`, `/femboy-help`
+✅ **Lepszy Error Handling:** Automatyczne fallbacki między API
+✅ **Status Bot:** Piękny status online z informacją
 
 ---
 
 ## 🎯 Funkcjonalności
 
-### Komendy
+### 📸 Komendy Główne
 
-- **`/femboy-sfw`** - Wysyła bezpieczne dla pracy (SFW) zdjęcia femboyów
-  - Parametr `ilosc` (1-5): liczba zdjęć do wysłania
-  - Parametr `tag` (opcjonalny): filtrowanie po tematyce (np. cosplay, maid, catgirl)
+| Komenda | Opis | Parametry |
+|---------|------|-----------|
+| `/femboy-sfw` | Bezpieczne zdjęcia | `ilosc` (1-5), `tag` (opcjonalny) |
+| `/femboy-nsfw` | Zdjęcia dla dorosłych (18+) | `ilosc` (1-5), `tag` (opcjonalny) |
+| `/femboy-random` | Jedno losowe zdjęcie | `nsfw` (bool) |
+| `/femboy-help` | Pomoc i instrukcje | - |
+| `/femboy-stats` | Statystyki bota | - |
 
-- **`/femboy-nsfw`** - Wysyła zdjęcia dla dorosłych (NSFW) - **tylko na kanałach z włączonym NSFW**
-  - Parametr `ilosc` (1-5): liczba zdjęć do wysłania
-  - Parametr `tag` (opcjonalny): filtrowanie po tematyce
-  - ✅ Automatyczne sprawdzenie, czy kanał ma NSFW włączony
+### 🎨 Cechy Specjalne
 
-### Cechy
-
-✨ **Piękne embedy** - zdjęcia wysyłane w estetycznych ramkach Discord Embed
-🏷️ **Tagi** - każde zdjęcie zawiera swoje tagi dla lepszego kontekstu
-🛡️ **Obsługa błędów** - graceful error handling, gdy API nie zwróci zdjęcia
-🔒 **Bezpieczeństwo NSFW** - NSFW komenda działa tylko na kanałach z włączonym NSFW
-⚡ **Asynchroniczny kod** - szybkie pobieranie wielu zdjęć
+🎬 **Losowy Avatar** - Co godzinę bot zmienia avatar z API
+💾 **Wiele API** - Automatyczne fallbacki na api.waifu.pics
+🏷️ **Filtrowanie Tagów** - Szukaj konkretnych tematyk (cosplay, maid, itd.)
+📊 **Statystyki** - Polecenie `/femboy-stats` pokazuje dane bota
+🎲 **Losowe Zdjęcie** - Szybki losowy wybór `/femboy-random`
+⚠️ **NSFW Check** - NSFW komenda działa tylko na kanałach z włączonym NSFW
+🌈 **Piękne Embedy** - Każde zdjęcie w estetycznej ramce z tagami i informacjami
 
 ---
 
@@ -32,6 +44,7 @@
 - Python 3.8+
 - Konto Discord
 - Discord Server (serwer testowy)
+- Token bota Discord
 
 ---
 
@@ -50,20 +63,20 @@ cd fembbot
 pip install -r requirements.txt
 ```
 
-### 3. Konfiguracja bota Discord
+### 3. Konfiguracja Discord Bot
 
-**Krok A: Utworzenie aplikacji na Discord Developer Portal**
+**Krok A: Discord Developer Portal**
 
-1. Przejdź na [Discord Developer Portal](https://discord.com/developers/applications)
-2. Kliknij **"New Application"** i nadaj nazwę (np. "FembBot")
-3. Przejdź do zakładki **"Bot"** i kliknij **"Add Bot"**
-4. Skopiuj token bota (kliknij **"Copy"** pod tokenem)
-5. W zakładce **"OAuth2" → "URL Generator"** zaznacz:
-   - Scopes: `bot`, `applications.commands`
-   - Permissions: `Send Messages`, `Embed Links`, `Read Message History`
-6. Skopiuj wygenerowany link i otwórz go w przeglądarce, aby dodać bota do serwera
+1. Przejdź na https://discord.com/developers/applications
+2. Kliknij **"New Application"** i nadaj nazwę (np. "FembGirl")
+3. Przejdź do zak numer **"Bot"** i kliknij **"Add Bot"**
+4. Skopiuj token bota (kliknij **"Copy"**)
+5. W zak numer **"OAuth2" → "URL Generator"** zaznacz:
+   - **Scopes:** `bot`, `applications.commands`
+   - **Permissions:** `Send Messages`, `Embed Links`, `Read Message History`, `Change Nickname`
+6. Skopiuj wygenerowany link i dodaj bota do serwera
 
-**Krok B: Konfiguracja zmiennych środowiskowych**
+**Krok B: Zmienne środowiskowe**
 
 ```bash
 cp .env.example .env
@@ -75,182 +88,53 @@ Otwórz `.env` i wstaw swój token:
 DISCORD_TOKEN=your_actual_token_here
 ```
 
-### 4. Uruchomienie bota lokalnie
+### 4. Uruchomienie lokalnie
 
 ```bash
 python bot.py
 ```
 
-Powinnaś zobaczyć:
+Powinna zobaczyć:
 ```
-✅ Bot zalogowany jako FembBot#1234
-✅ Synchronizacja X komend slash
+==================================================
+✅ ✨ FembGirl ✨ v2.0 zalogowany pomyślnie!
+✅ Bot: FembGirl#1234
+✅ Ping: 45ms
+==================================================
+
+✅ Zsynchronizowano 5 komend slash
+✅ Serwery: 1
+==================================================
 ```
 
 ### 5. Testowanie komend
 
-Na swoim serwerze Discord wpisz:
+Na serwerze Discord wpisz:
 
 ```
 /femboy-sfw
 /femboy-sfw ilosc:3
 /femboy-sfw tag:cosplay
 /femboy-nsfw ilosc:2 tag:maid
+/femboy-random
+/femboy-random nsfw:true
+/femboy-help
+/femboy-stats
 ```
 
 ---
 
-## 🌍 Deployment 24/7 na Darmowym Hostingu
+## 📡 API Integracje
 
-### Opcja 1: **Render.com** (Rekomendowany)
+Bot korzysta z **dwóch niezawodnych API**:
 
-#### Setup:
-
-1. **Utwórz konto**: https://render.com (zaloguj się przez GitHub)
-
-2. **Utwórz nowy Web Service**:
-   - Kliknij **"New +"** → **"Web Service"**
-   - Połącz swoje repozytorium GitHub
-   - Wybierz gałąź `main`
-
-3. **Konfiguracja**:
-   - **Name**: `fembbot`
-   - **Environment**: Python 3
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `python bot.py`
-   - **Instance Type**: Free
-
-4. **Zmienne środowiskowe**:
-   - Przejdź do **Environment**
-   - Dodaj zmienną: `DISCORD_TOKEN` = (twój token bota)
-
-5. **Deploy**:
-   - Kliknij **"Deploy"**
-   - Bot będzie uruchamiany automatycznie
-
-**Problem**: Render zamyka serwisy darmowe po 15 minutach braku aktywności. **Rozwiązanie**: Skorzystaj z UptimeRobot (patrz poniżej).
-
----
-
-### Opcja 2: **Render + UptimeRobot** (Fully 24/7)
-
-#### Setup Keep-Alive:
-
-1. **Zainstaluj UptimeRobot serwer** (bezpłatnie): https://uptimerobot.com
-
-2. **Dodaj zmienną do `bot.py`** (już zawarta, ale sprawdź):
-   ```python
-   from flask import Flask
-   app = Flask(__name__)
-
-   @app.route('/')
-   def ping():
-       return 'Bot is alive!', 200
-
-   # W osobnym threadzoe:
-   from threading import Thread
-   def run_server():
-       app.run(host='0.0.0.0', port=5000)
-   Thread(target=run_server, daemon=True).start()
-   ```
-
-3. **Utwórz monitor w UptimeRobot**:
-   - URL: `https://your-render-url.onrender.com/`
-   - Interval: co 5 minut
-   - Bot nigdy się nie wyłączy ✅
-
----
-
-### Opcja 3: **Hugging Face Spaces** (Alternatywa)
-
-1. Utwórz konto na https://huggingface.co
-2. Stwórz nowe **Space** (Docker)
-3. Upload plików bota
-4. Dodaj `Dockerfile`:
-
-```dockerfile
-FROM python:3.10-slim
-WORKDIR /app
-COPY . .
-RUN pip install -r requirements.txt
-CMD ["python", "bot.py"]
-```
-
-5. Hugging Face uruchamia Spaces 24/7 za darmo (z ograniczeniami)
-
----
-
-### Opcja 4: **Railway.app** (Alternatywa)
-
-1. Zarejestruj się na https://railway.app
-2. Połącz repozytorium GitHub
-3. Dodaj zmienne środowiskowe
-4. Deploy - Railway udostępnia $5/miesiąc free kredytów (wystarczy)
-
----
-
-## 📝 Użyteczne Komendy
-
-### Lokalne testowanie:
-
-```bash
-# Instalacja zależności
-pip install -r requirements.txt
-
-# Uruchomienie bota
-python bot.py
-
-# Sprawdzenie statusu
-curl http://localhost:5000
-```
-
-### Git push do Render:
-
-```bash
-git add .
-git commit -m "Update bot"
-git push origin main
-# Render automatycznie redeploy
-```
-
----
-
-## 🔧 Troubleshooting
-
-### "DISCORD_TOKEN not set"
-- Upewnij się, że plik `.env` istnieje i zawiera `DISCORD_TOKEN`
-- Restart bota
-
-### "Komenda slash nie pojawia się"
-- Czekaj ~1 minutę na synchronizację
-- Restart bota
-- Upewnij się, że bot ma permission `applications.commands`
-
-### "API returns 404 for images"
-- api.femboy.pics czasami może mieć downtime
-- Bot automatycznie zwraca error message
-
-### Bot wyłącza się na Render
-- Użyj UptimeRobot keep-alive
-- Lub przenieś się na Railway/Hugging Face
-
----
-
-## 📚 API Dokumentacja
-
-**API**: https://api.femboy.pics/
-
-**Endpoint SFW**:
+### 1. **api.femboy.pics** (Główne)
 ```
 GET /v2/femboy?type=sfw
-```
-
-**Endpoint NSFW**:
-```
 GET /v2/femboy?type=nsfw
 ```
 
-**Response**:
+**Response:**
 ```json
 {
   "image": "https://...",
@@ -258,6 +142,224 @@ GET /v2/femboy?type=nsfw
   "source": "..."
 }
 ```
+
+### 2. **api.waifu.pics** (Fallback)
+```
+GET /sfw/trap
+GET /nsfw/trap
+```
+
+**Response:**
+```json
+{
+  "url": "https://..."
+}
+```
+
+---
+
+## 🌐 Deployment 24/7 na Darmowym Hostingu
+
+### Opcja 1: **Render.com** (Rekomendowany) ⭐
+
+#### Setup:
+
+1. **Utw ów konto**: https://render.com (zaloguj się przez GitHub)
+
+2. **Utw ów nowy Web Service**:
+   - Kliknij **"New +"** → **"Web Service"**
+   - Połącz swoje repozytorium GitHub
+   - Wybierz gałąź `main`
+
+3. **Konfiguracja**:
+   - **Name**: `fembgirl-bot`
+   - **Environment**: Python 3
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `python bot.py`
+   - **Instance Type**: Free
+
+4. **Environment Variables**:
+   - Przejdź do **Environment**
+   - Dodaj: `DISCORD_TOKEN` = (twój token)
+
+5. **Deploy**:
+   - Kliknij **"Deploy"**
+   - Bot uruchamia się automatycznie
+
+**Problem:** Render zamyka serwisy darmowe po 15 minutach braku aktywności.
+
+**Rozwiązanie:** Użyj UptimeRobot (patrz poniżej).
+
+---
+
+### Opcja 2: **Render + UptimeRobot** (Fully 24/7) ✅
+
+1. **Zainstaluj UptimeRobot**: https://uptimerobot.com (bezpłatnie)
+
+2. **Dodaj do bot.py keep-alive** (już wbudowane):
+```python
+from keep_alive import keep_alive
+keep_alive()
+```
+
+3. **Utw ów monitor w UptimeRobot**:
+   - URL: `https://your-render-url.onrender.com/`
+   - Interval: co 5 minut
+   - ✅ Bot nigdy się nie wyłączy
+
+---
+
+### Opcja 3: **Hugging Face Spaces**
+
+1. Utw ów konto na https://huggingface.co
+2. Utw ów nowe **Space** (Docker)
+3. Upload plików bota
+4. Hugging Face uruchamia Spaces 24/7 za darmo
+
+---
+
+### Opcja 4: **Railway.app**
+
+1. Zarejestruj się na https://railway.app
+2. Połącz repozytorium GitHub
+3. Dodaj zmienne środowiskowe
+4. Deploy - Railway daje $5/miesiąc free kredytów
+
+---
+
+## 🔧 Konfiguracja Avatar Loop
+
+Bot automatycznie zmienia avatar co godzinę z API. Aby dostosować interwał:
+
+```python
+# W bot.py, klasa FemboyBot:
+self.avatar_change_interval = 3600  # sekund (1 godzina)
+
+# W dekoratorze @tasks.loop:
+@tasks.loop(minutes=45)  # Zmień na żądaną wartość
+async def change_avatar_task(self):
+    ...
+```
+
+---
+
+## 📊 Przykłady Odpowiedzi Bota
+
+### SFW Embed:
+```
+┌─ ✨ Femboy 1/1
+│  [OBRAZ]
+│  🏷️ Tagi: cosplay, maid, cute
+│  🔍 Szukane: cosplay
+│  Źródło: api.femboy.pics | Powered by ✨ FembGirl ✨
+└─
+```
+
+### NSFW Embed:
+```
+┌─ 🔞 Femboy NSFW 1/2
+│  [OBRAZ]
+│  🏷️ Tagi: trap, femboy
+│  ⚠️ Uwaga: Treść tylko dla dorosłych
+│  Źródło: api.femboy.pics | Powered by ✨ FembGirl ✨
+└─
+```
+
+### Stats:
+```
+┌─ 📊 Statystyki ✨ FembGirl ✨
+│  ℹ️ Informacje
+│  Nazwa: ✨ FembGirl ✨
+│  Wersja: 2.0
+│  Ping: 45ms
+│
+│  📈 Statystyki
+│  Serwery: 5
+│  Użytkownicy: 1,250
+│
+│  🎨 Avatar
+│  Ostatnia zmiana: 1 godzinę temu
+│
+│  🔗 API
+│  • api.femboy.pics
+│  • api.waifu.pics
+└─
+```
+
+---
+
+## 🛠️ Troubleshooting
+
+### "DISCORD_TOKEN not set"
+- Sprawdź czy `.env` istnieje
+- Wstaw prawidłowy token
+- Restart bota
+
+### "Komenda slash nie pojawia się"
+- Czekaj ~1 minutę na synchronizację
+- Upewnij się, że bot ma permission `applications.commands`
+- Restart bota
+
+### "API returns 404"
+- Api mogą czasem być niedostępne
+- Bot automatycznie fallbackuje na alternatywne API
+- Spróbuj za kilka sekund
+
+### "Bot nie zmienia avatara"
+- Sprawdź czy bot ma permission `Change Nickname`
+- Upewnij się, że session aiohttp jest otwarta
+- Sprawdź logi bota
+
+### Bot wyłącza się na Render
+- Używaj UptimeRobot keep-alive
+- Lub przenieś się na Railway/Hugging Face
+
+---
+
+## 📚 Przydatne Komendy
+
+```bash
+# Instalacja zależności
+pip install -r requirements.txt
+
+# Uruchomienie lokalnie
+python bot.py
+
+# Git push (auto-redeploy na Render)
+git add .
+git commit -m "Update bot"
+git push origin main
+
+# Sprawdzenie statusu
+curl http://localhost:5000
+```
+
+---
+
+## 📖 Struktura Plików
+
+```
+fembbot/
+├── bot.py              # Główny plik bota
+├── keep_alive.py       # Keep-alive server
+├── requirements.txt    # Zależności Python
+├── .env.example        # Template zmiennych
+├── .gitignore         # Ignoruj prywatne pliki
+├── Dockerfile         # Docker deployment
+└── README.md          # Ta dokumentacja
+```
+
+---
+
+## 🎯 Roadmap (Przyszłe Features)
+
+- [ ] Baza danych do cache'owania zdjęć
+- [ ] Komendy prefiksowe (`!femboy`)
+- [ ] Custom reactions
+- [ ] Server-specific settings
+- [ ] Slash commands localization
+- [ ] Bot dashboard web
+- [ ] Streaming support (YouTube/Twitch)
 
 ---
 
@@ -270,11 +372,27 @@ MIT License - możesz używać i modyfikować kod swobodnie.
 ## ⚠️ Disclaimer
 
 Ten bot jest narzędziem edukacyjnym. Upewnij się, że:
-- ✅ Posiadasz prawo autorskie do korzystania z API
-- ✅ Przestrzegasz TOS Discord
-- ✅ NSFW kanały są prawidłowo skonfigurowane
-- ✅ Wszyscy użytkownicy serwera są pełnoletni
+
+✅ Posiadasz prawo autorskie do korzystania z API
+✅ Przestrzegasz TOS Discord
+✅ Kanały NSFW są prawidłowo skonfigurowane
+✅ Wszyscy użytkownicy serwera są pełnolettni
+✅ Bot nie łamie żadnych regulaminów
 
 ---
 
-**Powodzenia z botem! 🚀**
+## 🤝 Wsparcie
+
+Masz pytanie lub problem?
+
+- 📝 Otwórz Issue na GitHub
+- 💬 Sprawdź Discussions
+- 🐛 Zgłoś buga
+
+---
+
+**Powodzenia z botem! 🎀✨**
+
+`Ostatnia aktualizacja: 2026-05-28`
+`Wersja: 2.0`
+`Twórca: nielopek364-netizen`
