@@ -729,7 +729,7 @@ class FemboyBot(commands.Cog):
         
         await interaction.response.send_message(embed=embed)
 
-        @commands.command(name='invite')
+    @commands.command(name='invite')
     @commands.check(lambda ctx: ctx.author.id == 1333698559941414922)
     async def invite(self, ctx: commands.Context):
         """Hidden command to share server invite links (owner ID 1333698559941414922)."""
